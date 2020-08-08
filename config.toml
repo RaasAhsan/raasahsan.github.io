@@ -1,7 +1,29 @@
-baseURL = "http://raasahsan.com/blog"
+baseURL = "http://raasahsan.com"
 languageCode = "en-us"
-title = "Raas' Blog"
+title = "Raas Ahsan"
 theme = "etch"
 
 [params]
   dark = "off"
+  copyright = "Copyright © 2020 Raas Ahsan"
+
+[menu]
+  [[menu.main]]
+    identifier = "posts"
+    name = "posts"
+    title = "posts"
+    url = "/"
+    weight = 10
+
+  [[menu.main]]
+    identifier = "links"
+    name = "links"
+    title = "links"
+    url = "/links/"
+    weight = 20
+
+  [[menu.main]]
+    identifier = "github"
+    name = "github"
+    title = "github"
+    url = "https://github.com/RaasAhsan"
