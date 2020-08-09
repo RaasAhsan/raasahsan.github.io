@@ -11,7 +11,7 @@ Fault tolerance can often be costly, difficult or impossible to implement, so ma
 Fallbacks are a type of resilience pattern that achieve graceful degradation for a system. Generally, a fallback is employed in conjunction with some unreliable or fallible component in a system. If that component fails to produce a response, then the system invokes the fallback, which produces a response that is typically imprecise or stale, but cheaper or easier to compute (the properties of the fallback vary with the nature of the system). Crucially, it enables the system to proceed. 
 
 ## Searching for books
-As a concrete example, let's consider a system architecture for an e-commerce website that sells books. Users can enter keywords in a search bar to find books they are interested in reading. The main web service calls the search service is for every search query. The search service incorporates submitted keywords as well as user preferences, user search history and user purchase history to find books that are appropriate to show the user.
+As a concrete example, let's consider a system architecture for an e-commerce website that sells books. Users can enter keywords in a search bar to find books they are interested in reading. The main web service calls the search service for every search query. The search service incorporates submitted keywords as well as user preferences, user search history and user purchase history to find books that are appropriate to show the user.
 
 What happens if the search service experiences an outage that lasts for 10 minutes? Users wouldn't be able to find books they want to buy and read. To avoid the risk of losing thousands of sales, we design a fallback for the search service. The goal of the fallback is to make a best effort to return relevant books that may not be faithful to the search query and personalization data.
 
@@ -50,7 +50,7 @@ In the following sections, we will discuss several concerns around designing eff
 Before designing a fallback, we should justify its value. Some guiding questions are listed below:
 1. Are there better ways to solve the problem? For example, timeouts, circuit breakers, retries, or failover.
 2. How critical is the component and the service it provides? If it fails, what is the impact?
-3. Is the component inherently reliable? Does it frequently experience prolonged outages, or does it intermittently return failures?
+3. Is the component inherently unreliable? Does it frequently experience prolonged outages, or does it intermittently return failures?
 4. What is the domain of faults we want to protect the system against?
 
 If we ultimately decide to build a fallback, we should be cognizant of the costs.
@@ -58,7 +58,7 @@ If we ultimately decide to build a fallback, we should be cognizant of the costs
 ### Regular testing
 Testing is arguably the most crucial, the most neglected, and the most difficult part in maintaining fallbacks. By nature, failures in most systems happen infrequently, so a fallback may never be invoked. If we do not regularly verify that a fallback works, we have no way of guaranteeing that it continues to work as the system evolves. 
 
-To continue the book store example, imagine we are asked to build a feature that forces us to change the book data model in such a way that it breaks compatibility. We forget that the fallback cache stores data with the old model because that we rarely touch that infrastructure. Eventually, the system experiences an outage but because the cache entries aren't compatible with the new data model, the service fails to load them, so users can't search for books.
+To continue the book store example, imagine we are asked to build a feature that forces us to change the book data model in such a way that it breaks compatibility. We forget that the fallback cache stores data with the old model because we rarely touch that infrastructure. Eventually, the system experiences an outage but because the cache entries aren't compatible with the new data model, the service fails to load them, so users can't search for books.
 
 How can we be confident our fallback works in production when it is needed? Testing the fallback in a live environment is the most fool-proof way to do it, but it may be unwieldy to force the system to exercise that behavior. The strategies listed below can be used in conjunction with automated testing:
 1. Introduce testing users which force different kinds of behavior in the system. 
