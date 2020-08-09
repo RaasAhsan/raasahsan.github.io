@@ -13,7 +13,7 @@ Fallbacks are a type of resilience pattern that achieve graceful degradation for
 ## Searching for books
 As a concrete example, let's consider a system architecture for an e-commerce website that sells books. Users can enter keywords in a search bar to find books they are interested in reading. The main web service calls the search service is for every search query. The search service incorporates submitted keywords as well as user preferences, user search history and user purchase history to find books that are appropriate to show the user.
 
-What happens if the search service experiences an outage that lasts for 10 minutes? Users wouldn't be able to find books they want to buy and read. To avoid the risk of losing thousands of sales, we design a fallback for the search service. The goal of the fallback is to make a best effort to return relevant books that may not be faithful to the search query and relevant user data.
+What happens if the search service experiences an outage that lasts for 10 minutes? Users wouldn't be able to find books they want to buy and read. To avoid the risk of losing thousands of sales, we design a fallback for the search service. The goal of the fallback is to make a best effort to return relevant books that may not be faithful to the search query and personalization data.
 
 The fallback calls for a batch job: we determine the top N most popular keywords, pre-calculate a set of M relevant books for each one, and save the result set in a cache. The job runs on a regular basis as trends change over time and new books are released daily. If the web service fails to get a response from the search service, it falls back to the cached result sets.
 
@@ -21,92 +21,81 @@ The following Java code illustrates the behavior of the web service:
 ```java
 public class SearchController {
     public Listing search(String query, UserId userId) {
+        List<Book> books;
         try {
-            Books books = searchService.getBooksForSearch(query, userId);
-            // images? ratings? testimonials? another service that is necessary to hit?
-            // what if search returns book IDs and we have to query a book database for metadata
-            return new Listing(books);
+            List<BookId> bookIds = searchService.getBooksForSearch(query, userId);
+            books = bookService.getBooks(bookIds);
         } catch (Exception e) {
-            Books fallbackBooks = cachedBooksDatabase.getBooksForSearch(query);
-            return new Listing(fallbackBooks);
+            books = cachedBooksDatabase.getBooksForSearch(query);
         }
+        return new Listing(books);
     }
 }
 ```
 
 ## The trouble with fallbacks
 Despite their conceptual simplicity, fallbacks tend to be highly controversial in the practice of distributed systems design<sup>1</sup>. Some common criticisms on fallbacks are stated below:
-* Fallbacks are difficult or impossible to test.
-* If the fallback itself fails, it provides no value.
-* Systems with fallbacks are harder to reason about.
-* Many fallbacks can create an unpredictable system.
+1. Fallbacks are difficult or impossible to test. If they remain untested, it is impossible to know whether they continue to work correctly.
+2. Fallbacks often fail themselves in non-trivial ways.
+3. Systems with fallbacks become unpredictable and are harder to reason about.
 
-FIX: Instead, just use circuit breakers and retries etc
-Is a wrong answer better than no answer?
-how fallbacks interact with other systems 
+I agree with these criticisms. I have encountered several incidents where a fallback was a root cause of an outage. In one incident, the fallback for a component was incompatible with a downstream service. In another incident, the fallback was called in parallel with the happy path, which ended up overloading a static resource. There was no evidence that either of these fallbacks provided any value, and the code behind them was rather complex. 
 
-I tend to agree with these criticisms. The third point may seem superficial, but it is a completely legitimate concern. For example, a system with fallbacks for 4 independent components admits 16 possible execution paths. The fallback for one system can interact with another system in non-trivial ways. I've also encountered several incidents where a fallback was the root cause of an outage because it wasn't working properly<sup>2</sup>.
+That being said, there are situations where fallbacks are appropriate. The goal then should be to design fallbacks that are easy to understand, maintain and debug.
 
-That being said, it is hard to deny that there are scenarios where fallbacks are appropriate. The goal then should be to design fallbacks that are easy to understand, maintain and debug.
+## Discussion
+In the following sections, we will discuss several concerns around designing effective and reliable fallbacks. We will frame these concerns around the book store example described above, but the details for another system may look completely different. This is by no means a definitive guide as it encompasses lessons learned from systems I have worked with, which are certainly biased in some ways.
 
-In the following sections, we will discuss concerns around designing effective and reliable fallbacks. This is by no means a definitive guide as it only encompasses learnings from past experiences.
+### Justification
+Before designing a fallback, we should justify its value. Some guiding questions are listed below:
+1. Are there better ways to solve the problem? For example, timeouts, circuit breakers, retries, or failover.
+2. How critical is the component and the service it provides? If it fails, what is the impact?
+3. Is the component inherently reliable? Does it frequently experience prolonged outages, or does it intermittently return failures?
+4. What is the domain of faults we want to protect the system against?
 
-## Justification
-* Consider the criticality of the component
-* What domain of faults do we want to protect against?
-* Is the component inherently unreliable?
-* Does the component experience intermittent failures or prolonged outages
+If we ultimately decide to build a fallback, we should be cognizant of the costs.
 
-By building a fallback, you are adding a lot of complexity to your system. More code, cyclomatic complexity. branch coverage, mentally keep track of fallback
-
-## Regular testing
+### Regular testing
 Testing is arguably the most crucial, the most neglected, and the most difficult part in maintaining fallbacks. By nature, failures in most systems happen infrequently, so a fallback may never be invoked. If we do not regularly verify that a fallback works, we have no way of guaranteeing that it continues to work as the system evolves. 
 
-To continue our running example, imagine the business asks us to build a feature that forces us to change the book data model in such a way that it breaks compatibility. We forget that the fallback cache stores data with the old model because that we rarely touch that infrastructure. Eventually, the system experiences an outage but because the cache entries aren't compatible with the new data model, the service fails to load them, so users can't search for books.
+To continue the book store example, imagine we are asked to build a feature that forces us to change the book data model in such a way that it breaks compatibility. We forget that the fallback cache stores data with the old model because that we rarely touch that infrastructure. Eventually, the system experiences an outage but because the cache entries aren't compatible with the new data model, the service fails to load them, so users can't search for books.
 
-How can we be confident our fallback works in production when it is needed? Testing the fallback in production is the most fool-proof way to do it, but it may be difficult to force the system to exercise that behavior.
+How can we be confident our fallback works in production when it is needed? Testing the fallback in a live environment is the most fool-proof way to do it, but it may be unwieldy to force the system to exercise that behavior. The strategies listed below can be used in conjunction with automated testing:
+1. Introduce testing users which force different kinds of behavior in the system. 
+2. Support request-level configuration that can introduce special behavior on-demand.
+3. Occasionally invoke the fallback in the happy path to ensure that it works. If it is appropriate, perhaps even return the fallback response for a percentage of traffic.
 
-## Scope and surface area
-Minimize the number of fallbacks
-Fallback for a system rather than for a component
-at the edge of your system
-number of distinct execution paths through a system - cyclomatic complexity
+### Scope
+In general, there are two locations at which a fallback can be positioned: in front of an individual component or in front of the entire system (or possibly a group of components). 
 
-There are some cases where it may make sense to introduce fallbacks for individual components. In the book store example, imagine we build a user rating feature. Ratings for each book should be rendered in the search listing, so the web service queries a user rating service to fetch the ratings. If the user rating service experiences a prolonged outage, should we rely on our primary fallback or should we return the listing without any ratings?
+Consider the book store example, where the fallback covers the scope of the entire search controller. If we observe a failure in the book or search services, the fallback is invoked. Instead, what if we designed two separate fallbacks, one for the book service, and one for the search service?
 
-I think this can be a highly debatable topic, but ultimately it feels like it depends on the business, the domain and the nature of the system. My interpretation of the problem is described below:
-1. The former approach minimizes complexity in the system and encourages us to constantly improve the reliability of each component. If any given component fails, we return the cached listing even though we may have enough data to produce a more optimal one. Perhaps the fallback cache generation job can incorporate ratings into the results as well.
-2. The latter approach optimizes for the best user experience in the presence of faults. However, we pay in the form of the complexity that an additional fallback brings.
+The system-level fallback seems preferable for several reasons:
+1. It covers a larger failure domain than component-level fallbacks. Imagine the book store web service performed extra processing before returning a listing, which could also fail.
+2. It minimizes the cyclomatic complexity of the search function. The system-level fallback admits 3 distinct execution paths whereas the component-level fallbacks admit 5. Fallbacks can be fallible too!
+3. Only one fallback needs to be tested rather than two.
+4. From a domain modeling perspective, it makes sense to design a fallback for a high-level system rather than a low-level component. 
 
-## Visibility
+However, there are some cases where it may make sense to introduce fallbacks for individual components. Let's consider two scenarios in the book store example.
+1. We design a rating feature where users can submit reviews for books they have read. Ratings for each book should be rendered in the search listing, so the web service additionally queries a rating service to return rating data. If that service is unavailable, should we rely on the primary fallback or should we return the listing without ratings?
+2. We begin publishing search events for analytics purposes to a stream processor. If that service is unavailable, should we rely on the primary fallback or introduce a component-level fallback (suppress the failure and/or asynchronously retry)?
 
-## Compositional resiliency
-Fallbacks tend to pair well with other resilience mechanisms like timeouts, retries and circuit breakers. Imagine that we observe that a handful of requests to the book service occasionally time out because of network congestion issues. 
+At a high level, the two approaches are (1) to rely on the system-level fallback or (2) to introduce a component-level fallback. The former approach minimizes complexity in the system and encourages us to constantly improve the reliability of each individual component. If a component fails, we return the cached listing even though we may have enough data to produce a more optimal one. On the other hand, the latter approach optimizes for the best user experience in the presence of faults. This marginal reliability comes at the cost of additional complexity that another fallback brings.
 
-cascading failures
+I think this can be a highly debatable topic, but ultimately it depends on the domain, the nature and the criticality of the system and its components.
 
-## Simplicity
-Avoid replicating behavior.
-Focus more on building reliable systems.
-Reserve fallbacks for the most disastrous failures.
-Build reliable fallbacks, but try not to rely on them
-fail fast
+### Compositional resiliency
+Fallbacks tend to pair well with other resilience mechanisms. For example, a common pattern is to protect a network call with a timeout, circuit breaker, and retry. If the circuit breaker trips, it starts returning failures. We can introduce the fallback in front of that. The effect of this is that intermittent failures will be immediately retried, but during prolonged outages the system will resort to the fallback. 
 
+### Visibility
+Given the complexity that a fallback, like any other resilience mechanism, introduces to a system, it is important to instrument monitoring, logging and tracing to help understand the behavior of a system when a fallback is invoked.
 
+<hr/>
 
-* Failover, design other fault tolerant systems like queueing emails in a database
-* Focus on building more reliable services
-* Avoid fallbacks if possible
-* Cover as much surface area with a fallback as possible, rather than for individual components
-* Use fallbacks in conjunction with other resilience mechanisms
-* Keep fallbacks as simple as possible
-* Test fallbacks regularly
-* Logging and monitoring fallbacks
-* Justify fallbacks. Try to use them for inherently unreliable services, and clearly define their scope
-* Anecdote: fallback has caused failures in our systems
-* Media rights fallback
-* Media services/activation services
+Some advice I find useful when designing fallbacks:
+1. Focus on building reliable systems.
+2. Build reliable fallbacks, but try not to rely on them.
+3. Design fallbacks to be as simple as possible.
 
-## Footnotes
-- 1: 
-- 2: It's important to acknowledge whether there were any instances where the fallback *did* prevent an outage in the past before discounting it.
+## References
+- 1: [Avoiding Fallback in Distributed Systems](https://aws.amazon.com/builders-library/avoiding-fallback-in-distributed-systems/)

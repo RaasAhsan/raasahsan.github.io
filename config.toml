@@ -27,3 +27,8 @@ theme = "etch"
     name = "github"
     title = "github"
     url = "https://github.com/RaasAhsan"
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
