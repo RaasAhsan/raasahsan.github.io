@@ -92,7 +92,7 @@ Given the complexity that a fallback, like any other resilience mechanism, intro
 
 <hr/>
 
-Some advice I find useful when designing fallbacks:
+Some advice I have found to be useful when designing fallbacks:
 1. Focus on building reliable systems.
 2. Build reliable fallbacks, but try not to rely on them.
 3. Design fallbacks to be as simple as possible.
