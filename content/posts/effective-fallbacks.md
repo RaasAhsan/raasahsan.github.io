@@ -48,7 +48,7 @@ In the following sections, we will discuss several concerns around designing eff
 
 ### Justification
 Before designing a fallback, we should justify its value. Some guiding questions are listed below:
-1. Are there better ways to solve the problem? For example, timeouts, circuit breakers, retries, or failover.
+1. Are there better ways to solve the problem? For example, caching, timeouts, circuit breakers, retries, or failover.
 2. How critical is the component and the service it provides? If it fails, what is the impact?
 3. Is the component inherently unreliable? Does it frequently experience prolonged outages, or does it intermittently return failures?
 4. What is the domain of faults we want to protect the system against?
