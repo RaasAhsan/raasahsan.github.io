@@ -44,7 +44,7 @@ I agree with these criticisms. I have encountered several incidents where a fall
 That being said, there are situations where fallbacks are appropriate. The goal then should be to design fallbacks that are easy to understand, maintain and debug.
 
 ## Discussion
-In the following sections, we will discuss several concerns around designing effective and reliable fallbacks. We will frame these concerns around the book store example described above, but the details for another system may look completely different. This is by no means a definitive guide as it encompasses lessons learned from systems I have worked with, which are certainly biased in some ways.
+In the following sections, we will discuss several concerns around designing effective and reliable fallbacks. We will frame these concerns around the book store example described above, but the details for another system may look entirely different. This is by no means a definitive guide as it encompasses lessons learned from systems I have worked with, which are certainly biased in some ways.
 
 ### Justification
 Before designing a fallback, we should justify its value. Some guiding questions are listed below:
@@ -55,15 +55,18 @@ Before designing a fallback, we should justify its value. Some guiding questions
 
 If we ultimately decide to build a fallback, we should be cognizant of the benefits and the costs.
 
-### Regular testing
-Testing is arguably the most crucial, the most neglected, and the most difficult part in maintaining fallbacks. By nature, failures in most systems happen infrequently, so a fallback may never be invoked. If we do not regularly verify that a fallback works, we have no way of guaranteeing that it continues to work as the system evolves. 
+### Testing
+Testing is arguably the most crucial, the most neglected, and the most difficult part in maintaining fallbacks. By nature, failures in most systems rarely occur, so fallbacks are invoked just as infrequently. If we do not regularly verify that a fallback works, we have no confidence that it continues to work as the system evolves. 
 
 To continue the book store example, imagine we are asked to build a feature that forces us to change the book data model in such a way that it breaks compatibility. We forget that the fallback cache stores data with the old model because we rarely touch that infrastructure. Eventually, the system experiences an outage but because the cache entries aren't compatible with the new data model, the service fails to load them, so users can't search for books.
 
-How can we be confident our fallback works in production when it is needed? Testing the fallback in a live environment is the most fool-proof way to do it, but it may be unwieldy to force the system to exercise that behavior. The strategies listed below can be used in conjunction with automated testing:
-1. Introduce testing users which force different kinds of behavior in the system. 
-2. Support request-level configuration that can introduce special behavior on-demand.
-3. Occasionally invoke the fallback in the happy path to ensure that it works. If it is appropriate, perhaps even return the fallback response for a percentage of traffic.
+How can we be confident our fallback works in production when it is needed? Testing the fallback in a live environment is the most foolproof way to do it, but it may be unwieldy to trigger the conditions that cause the system to exercise that behavior. 
+
+One highly effective strategy for exercising the resilience in a system is *chaos testing*<sup>2</sup>. Chaos testing is a reliability engineering technique where faults are intentionally introduced into a (production) system for the sole purpose of observing the system's response. In the book store example, we could terminate a portion of the book service cluster to overload the remaining instances, which introduces downstream latency and failures.
+
+Fault injection can be simulated via less expensive and less powerful techniques. Services and clients can expose middleware that force applications to return failures and introduce latency. These middlewares can expose feature flags that control parameters like error codes and injection rates. Application proxies like Envoy allow us to transparently induce faults at network boundaries<sup>3</sup>.
+
+Another way to test a fallback is by occasionally invoking it in the happy path, possibly returning the response to clients.  
 
 ### Scope
 In general, there are two locations at which a fallback can be positioned: in front of an individual component or in front of the entire system (or possibly a group of components). 
@@ -84,14 +87,14 @@ At a high level, the two approaches are (1) to rely on the system-level fallback
 
 I think this can be a highly debatable topic, but ultimately it depends on the domain, the nature and the criticality of the system and its components.
 
-### Compositional resiliency
-Fallbacks tend to pair well with other resilience mechanisms. For example, a common pattern is to protect a network call with a timeout, circuit breaker, and retry. If the circuit breaker trips, it starts returning failures. We can introduce the fallback in front of that. The effect of this is that intermittent failures will be immediately retried, but during prolonged outages the system will resort to the fallback. 
+### Composable resiliency
+Fallbacks tend to pair well with other resilience mechanisms. For example, a common pattern is to protect a network call with a timeout, circuit breaker, and retry. If the circuit breaker trips, it starts returning failures. A fallback can be introduced in front of that. The effect of this is that intermittent failures will be immediately retried, but during prolonged outages the system will resort to the fallback.
 
 ### Visibility
-Given the complexity that a fallback, like any other resilience mechanism, introduces to a system, it is important to instrument monitoring, logging and tracing to help understand the behavior of a system when a fallback is invoked.
+Given the complexity that fallbacks, like any other resilience mechanism, introduce to a system, it is important to instrument monitoring, logging and tracing to help understand the behavior of a system when they are invoked.
 
 ## Conclusion
-Fallbacks can be an effective technique for improving reliability, but they must be designed with diligence and caution. To wrap up the post, here is some advice I encourage others to think about when building fallbacks:
+Fallbacks can be an effective technique for improving the reliability of a system, but they must be designed and maintained with diligence. To wrap up the post, here is some advice I encourage others to think about when building fallbacks:
 1. Design simple fallbacks that can produce a useful result if all else fails.
 2. Regularly exercise fallback behavior in an evolving system.
 3. Build reliable fallbacks, but avoid relying on them.
@@ -99,3 +102,5 @@ Fallbacks can be an effective technique for improving reliability, but they must
 
 ## Reference
 - 1: [Avoiding Fallback in Distributed Systems](https://aws.amazon.com/builders-library/avoiding-fallback-in-distributed-systems/)
+- 2: [Principles of Chaos Engineering](http://principlesofchaos.org/)
+- 3: [Fault Injection in Envoy](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/fault_filter)
