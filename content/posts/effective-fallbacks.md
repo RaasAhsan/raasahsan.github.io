@@ -13,9 +13,9 @@ Fallbacks are a type of resilience pattern that achieve graceful degradation for
 ## Searching for books
 As a concrete example, let's consider a system architecture for an e-commerce website that sells books. Users can enter keywords in a search bar to find books they are interested in reading. The main web service calls the search service for every search query. The search service incorporates submitted keywords as well as user preferences, user search history and user purchase history to find books that are appropriate to show the user.
 
-What happens if the search service experiences an outage that lasts for 10 minutes? Users wouldn't be able to find books they want to buy and read. To avoid the risk of losing thousands of sales, we design a fallback for the search service. The goal of the fallback is to make a best effort to return relevant books that may not be faithful to the search query and personalization data.
+Unfortunately, our search service relies on a third-party catalog who is unreliable and is known to experience prolonged outages. If an outage occurs, users cannot find books they are interested in purchasing. We would like to avoid the risk of losing thousands of sales during outages. We could build our own catalog but search technology is not our strong suit. Instead, we design a fallback for the search service,  whose goal is to make a best effort to return relevant books that may not be faithful to the search query and personalization data.
 
-The fallback calls for a batch job: we determine the top N most popular keywords, pre-calculate a set of M relevant books for each one, and save the result set in a cache. The job runs on a regular basis as trends change over time and new books are released daily. If the web service fails to get a response from the search service, it falls back to the cached result sets.
+The fallback calls for a batch job: we determine the top N most popular keywords, pre-calculate a set of M relevant books for each one, and save the result set in a network cache. The job runs on a regular basis as trends change over time and new books are released daily. If the web service fails to get a response from the search service, it falls back to the cached result sets.
 
 The following Java code illustrates the behavior of the web service:
 ```java
@@ -53,7 +53,7 @@ Before designing a fallback, we should justify its value. Some guiding questions
 3. Is the component inherently unreliable? Does it frequently experience prolonged outages, or does it intermittently return failures?
 4. What is the domain of faults we want to protect the system against?
 
-If we ultimately decide to build a fallback, we should be cognizant of the costs.
+If we ultimately decide to build a fallback, we should be cognizant of the benefits and the costs.
 
 ### Regular testing
 Testing is arguably the most crucial, the most neglected, and the most difficult part in maintaining fallbacks. By nature, failures in most systems happen infrequently, so a fallback may never be invoked. If we do not regularly verify that a fallback works, we have no way of guaranteeing that it continues to work as the system evolves. 
@@ -90,12 +90,12 @@ Fallbacks tend to pair well with other resilience mechanisms. For example, a com
 ### Visibility
 Given the complexity that a fallback, like any other resilience mechanism, introduces to a system, it is important to instrument monitoring, logging and tracing to help understand the behavior of a system when a fallback is invoked.
 
-<hr/>
+## Conclusion
+Fallbacks can be an effective technique for improving reliability, but they must be designed with diligence and caution. To wrap up the post, here is some advice I encourage others to think about when building fallbacks:
+1. Design simple fallbacks that can produce a useful result if all else fails.
+2. Regularly exercise fallback behavior in an evolving system.
+3. Build reliable fallbacks, but avoid relying on them.
+4. Minimize the number of fallbacks in a system to minimize its complexity.
 
-Some advice I have found to be useful when designing fallbacks:
-1. Focus on building reliable systems.
-2. Build reliable fallbacks, but try not to rely on them.
-3. Design fallbacks to be as simple as possible.
-
-## References
+## Reference
 - 1: [Avoiding Fallback in Distributed Systems](https://aws.amazon.com/builders-library/avoiding-fallback-in-distributed-systems/)
