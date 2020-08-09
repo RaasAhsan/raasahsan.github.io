@@ -1,6 +1,6 @@
 ---
 title: "Effective Fallbacks"
-date: 2020-07-05T22:51:38-05:00
+date: 2020-08-08T20:00:00-05:00
 draft: false
 ---
 
