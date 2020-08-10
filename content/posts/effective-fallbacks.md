@@ -55,6 +55,25 @@ Before designing a fallback, we should justify its value. Some guiding questions
 
 If we ultimately decide to build a fallback, we should be cognizant of the benefits and the costs.
 
+### Scope
+In general, there are two locations at which a fallback can be positioned: in front of an individual component or in front of the entire system (or possibly a group of components). 
+
+Consider the book store example, where the fallback covers the scope of the entire search controller. If we observe a failure in the book or search services, the fallback is invoked. Instead, what if we designed two separate fallbacks, one for the book service, and one for the search service?
+
+The system-level fallback seems preferable for several reasons:
+1. It covers a larger failure domain than component-level fallbacks. Imagine the book store web service performed extra processing before returning a listing, which could also fail.
+2. It minimizes the cyclomatic complexity of the search function. The system-level fallback admits 3 distinct execution paths whereas the component-level fallbacks admit 5. Fallbacks can be fallible too!
+3. Only one fallback needs to be tested rather than two.
+4. From a domain modeling perspective, it may be more obvious what a fallback should look like for a high-level system rather than a low-level component. 
+
+However, there are some cases where it may make sense to introduce fallbacks for individual components. Let's consider two scenarios in the book store example.
+1. We design a rating feature where users can submit reviews for books they have read. Ratings for each book should be rendered in the search listing, so the web service additionally queries a rating service to return rating data. If that service is unavailable, should we rely on the primary fallback or should we return the listing without ratings?
+2. We begin publishing search events for analytics purposes to a stream processor. If that service is unavailable, should we rely on the primary fallback or introduce a component-level fallback (suppress the failure and/or asynchronously retry)?
+
+At a high level, the two approaches are (1) to rely on the system-level fallback or (2) to introduce a component-level fallback. The former approach minimizes complexity in the system and encourages us to constantly improve the reliability of each individual component. If a component fails, we return the cached listing even though we may have enough data to produce a more optimal one. On the other hand, the latter approach optimizes for the best user experience in the presence of faults. This marginal reliability comes at the cost of additional complexity that another fallback brings.
+
+I think this can be a highly debatable topic, but ultimately it depends on the domain, the nature and the criticality of the system and its components.
+
 ### Testing
 Testing is arguably the most crucial, the most neglected, and the most difficult part in maintaining fallbacks. By nature, failures in most systems rarely occur, so fallbacks are invoked just as infrequently. If we do not regularly verify that a fallback works, we have no confidence that it continues to work as the system evolves. 
 
@@ -66,26 +85,7 @@ One highly effective strategy for exercising the resilience in a system is *chao
 
 Fault injection can be simulated via less expensive and less powerful techniques. Services and clients can expose middleware that force applications to return failures and introduce latency. These middlewares can expose feature flags that control parameters like error codes and injection rates. Application proxies like Envoy allow us to transparently induce faults at network boundaries<sup>3</sup>.
 
-Another way to test a fallback is by occasionally invoking it in the happy path, possibly returning the response to clients.  
-
-### Scope
-In general, there are two locations at which a fallback can be positioned: in front of an individual component or in front of the entire system (or possibly a group of components). 
-
-Consider the book store example, where the fallback covers the scope of the entire search controller. If we observe a failure in the book or search services, the fallback is invoked. Instead, what if we designed two separate fallbacks, one for the book service, and one for the search service?
-
-The system-level fallback seems preferable for several reasons:
-1. It covers a larger failure domain than component-level fallbacks. Imagine the book store web service performed extra processing before returning a listing, which could also fail.
-2. It minimizes the cyclomatic complexity of the search function. The system-level fallback admits 3 distinct execution paths whereas the component-level fallbacks admit 5. Fallbacks can be fallible too!
-3. Only one fallback needs to be tested rather than two.
-4. From a domain modeling perspective, it makes sense to design a fallback for a high-level system rather than a low-level component. 
-
-However, there are some cases where it may make sense to introduce fallbacks for individual components. Let's consider two scenarios in the book store example.
-1. We design a rating feature where users can submit reviews for books they have read. Ratings for each book should be rendered in the search listing, so the web service additionally queries a rating service to return rating data. If that service is unavailable, should we rely on the primary fallback or should we return the listing without ratings?
-2. We begin publishing search events for analytics purposes to a stream processor. If that service is unavailable, should we rely on the primary fallback or introduce a component-level fallback (suppress the failure and/or asynchronously retry)?
-
-At a high level, the two approaches are (1) to rely on the system-level fallback or (2) to introduce a component-level fallback. The former approach minimizes complexity in the system and encourages us to constantly improve the reliability of each individual component. If a component fails, we return the cached listing even though we may have enough data to produce a more optimal one. On the other hand, the latter approach optimizes for the best user experience in the presence of faults. This marginal reliability comes at the cost of additional complexity that another fallback brings.
-
-I think this can be a highly debatable topic, but ultimately it depends on the domain, the nature and the criticality of the system and its components.
+Another strategy to test a fallback is by occasionally invoking it in the happy path, possibly returning the response to clients.  
 
 ### Composable resiliency
 Fallbacks tend to pair well with other resilience mechanisms. For example, a common pattern is to protect a network call with a timeout, circuit breaker, and retry. If the circuit breaker trips, it starts returning failures. A fallback can be introduced in front of that. The effect of this is that intermittent failures will be immediately retried, but during prolonged outages the system will resort to the fallback.
@@ -94,7 +94,7 @@ Fallbacks tend to pair well with other resilience mechanisms. For example, a com
 Given the complexity that fallbacks, like any other resilience mechanism, introduce to a system, it is important to instrument monitoring, logging and tracing to help understand the behavior of a system when they are invoked.
 
 ## Conclusion
-Fallbacks can be an effective technique for improving the reliability of a system, but they must be designed and maintained with diligence. To wrap up the post, here is some advice I encourage others to think about when building fallbacks:
+Fallbacks can be an effective technique for improving the reliability of a system, if designed and maintained with diligence. To wrap up the post, here is some advice I encourage others to think about when building fallbacks:
 1. Design simple fallbacks that can produce a useful result if all else fails.
 2. Regularly exercise fallback behavior in an evolving system.
 3. Build reliable fallbacks, but avoid relying on them.
