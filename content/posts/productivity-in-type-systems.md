@@ -1,6 +1,6 @@
 ---
 title: "Productivity in Type Systems"
-date: 2021-01-30T20:00:00-05:00
+date: 2021-01-30T19:00:00-05:00
 draft: false
 ---
 
