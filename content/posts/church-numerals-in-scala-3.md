@@ -52,5 +52,6 @@ object ChurchNumerals extends App {
 
 It's been possible to write this out in Scala 2 for a long time
 (see [this post](https://michid.wordpress.com/2008/04/18/meta-programming-with-scala-part-i-addition/)), 
-but the presence of type lambdas in Scala 3 lets us defer type application
-until actually we need to "perform evaluation".
+but the presence of type lambdas in Scala 3 lets us defer some type application
+until actually we need to "perform evaluation", which makes for prettier and
+more composable types.
