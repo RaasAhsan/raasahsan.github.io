@@ -21,17 +21,18 @@ object ChurchNumerals extends App {
   type one[s[_], z] = succ[zero, s, z]
   type two[s[_], z] = succ[one, s, z]
 
-  type plus = [m[s[_], z]] =>> [n[s[_], z]] =>> [s[_], z] =>> m[s, n[s, z]]
-  type +[m[s[_], z], n[s[_], z]] = [s[_], z] =>> plus[m][n][s, z]
+  type plus = [m[_[_], _]] =>> [n[_[_], _]] =>> [s[_], z] =>> m[s, n[s, z]]
+  type +[m[_[_], _], n[_[_], _]] = [s[_], z] =>> plus[m][n][s, z]
   
-  type times = [m[s[_], z]] =>> [n[s[_], z]] =>> [s[_], z] =>> m[[z0] =>> n[s, z0], z]
-  type *[m[s[_], z], n[s[_], z]] = [s[_], z] =>> times[m][n][s, z]
+  type times = [m[_[_], _]] =>> [n[_[_], _]] =>> [s[_], z] =>> m[[z0] =>> n[s, z0], z]
+  type *[m[_[_], _], n[_[_], _]] = [s[_], z] =>> times[m][n][s, z]
+
+  // use typeclasses to fold over the type structure
+  trait Nat[T]:
+    def real: Int
 
   trait Succ[T]
   trait Zero
-
-  trait Nat[T]:
-    def real: Int
 
   given natForSucc[T](using N: Nat[T]): Nat[Succ[T]] with
     override def real: Int = N.real + 1
@@ -42,7 +43,7 @@ object ChurchNumerals extends App {
   def real[T](using N: Nat[T]): Int =
     N.real
     
-  type expr[s[_], z] = (one + two)[s, z]
+  type expr[s[_], z] = (one + one + one)[s, z]
   type expr2[s[_], z] = (expr * expr)[s, z]
 
   println(real[expr2[Succ, Zero]]) // 9
