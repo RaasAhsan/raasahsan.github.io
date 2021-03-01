@@ -1,5 +1,5 @@
 ---
-title: "Church Numerals in Scala 3"
+title: "Typelevel Church Numerals in Scala 3"
 date: 2021-02-28T19:00:00-05:00
 draft: false
 ---
