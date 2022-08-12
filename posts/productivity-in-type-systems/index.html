@@ -1,0 +1,15 @@
+<!doctype html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><link rel="shortcut icon" href=http://raasahsan.com/favicon.ico><link rel=stylesheet href=/css/style.min.css><title>Productivity in Type Systems</title></head><body><header id=banner><h2><a href=http://raasahsan.com>Raas Ahsan</a></h2><nav><ul><li><a href=/ title=posts>posts</a></li><li><a href=/links/ title=links>links</a></li><li><a href=https://github.com/RaasAhsan title=github>github</a></li></ul></nav></header><main id=content><article><header id=post-header><h1>Productivity in Type Systems</h1><time>January 30, 2021</time></header><p>One of the commonly cited drawbacks of type systems is that they can inhibit
+productivity. I think this depends on your definition of productivity. I can
+think of two:</p><ol><li>To write the smallest amount of code in the shortest amount of time</li><li>To consistently produce working and bug-free code in such a way that it
+scales as the codebase and team grow over time.</li></ol><p>The presence of a type system could certainly hurt productivity in the first
+case, because languages with type systems often need to be supported by
+compilers and build tools. I find this type of productivity to be useful when
+I&rsquo;m writing small scripts that are run only a handful of times and/or rarely
+change.</p><p>Type systems are invaluable in the second case because they offer benefits
+that support those dimensions of scaling:</p><ol><li>They provide a framework within which you can precisely express your ideas.
+My favorite example is <em>algebraic data types</em> or <em>enums</em>, which are a
+fundamental construct in data modeling, but are absent in most mainstream
+languages.</li><li>They guarantee the absence of certain errors in a well-typed program,
+particularly large programs which are rapidly changing.</li><li>Typing information serves as documentation and as a static approximation
+for how a program behaves, so it is easier to infer intent from code long
+after it is written.</li></ol></article></main><footer id=footer>Copyright © 2020 Raas Ahsan</footer></body></html>
